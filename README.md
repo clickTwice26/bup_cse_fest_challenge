@@ -140,11 +140,13 @@ python3 tests/harness.py http://localhost:8000
 It checks interpretation against the reference, replays the returned schedule against
 every GridWise rule, and compares cost to the reference optimum.
 
-Paraphrase robustness and adversarial/edge behaviour:
+Paraphrase robustness, adversarial input, and multi-note interaction:
 
 ```bash
-python3 tests/paraphrase_test.py http://localhost:8000
-python3 tests/edge_test.py http://localhost:8000
+python3 tests/paraphrase_test.py http://localhost:8000                        # 36 rewordings
+python3 tests/paraphrase_test.py http://localhost:8000 paraphrases_hard.json  # 44 harder ones
+python3 tests/edge_test.py       http://localhost:8000                        # 32 adversarial
+python3 tests/multinote_test.py  http://localhost:8000                        # 6 interacting scenarios
 ```
 
 Go unit tests (optimiser against the reference costs, plus guardrail rules):

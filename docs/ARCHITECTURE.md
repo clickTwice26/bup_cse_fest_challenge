@@ -444,8 +444,9 @@ Resident memory is roughly 15 MB against a 512 MB limit. The container is a
 |---|---|---|
 | `go test ./...` | Optimiser reproduces the organiser's reference cost from their own reference interpretations; guardrail rules are pinned | pass |
 | `tests/harness.py` | End-to-end on all 10 public cases: interpretation, schedule validity, cost | **10/10 · 10/10 · 10/10** |
-| `tests/paraphrase_test.py` | 36 rewordings across all six directive types | **36/36** |
+| `tests/paraphrase_test.py` | 80 rewordings across all six directive types, in two sets of increasing difficulty | **80/80** |
 | `tests/edge_test.py` | Malformed input, degenerate numerics, conflicting directives, unicode, Bengali digits, prompt injection | **32/32** |
+| `tests/multinote_test.py` | 1-3 interacting notes per scenario, verifying one schedule honours every directive at once | **6/6** |
 
 The optimiser test is deliberately fed the **organiser's own interpretations**, so
 any cost difference is attributable to the solver and not to the model.

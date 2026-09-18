@@ -1,0 +1,52 @@
+[
+{"note":"Tarpaulins go over the array from 11 AM to 2 PM for waterproofing; treat generation as 10% of forecast.","type":"solar_reduction","hours":[11,12,13],"factor":0.1},
+{"note":"Shading from scaffolding will cost us about 40% of generation between 2 PM and 5 PM.","type":"solar_reduction","hours":[14,15,16],"factor":0.6},
+{"note":"Rooftop yield will be limited to 40% of forecast during the 12-15 window.","type":"solar_reduction","hours":[12,13,14],"factor":0.4},
+{"note":"Solar will run at 35% capacity from 10 AM till 1 PM.","type":"solar_reduction","hours":[10,11,12],"factor":0.35},
+{"note":"We'll lose roughly a third of solar from 11:00 to 14:00 due to haze.","type":"solar_reduction","hours":[11,12,13],"factor":0.667},
+{"note":"Solar output drops 45% from 12:00 to 15:00.","type":"solar_reduction","hours":[12,13,14],"factor":0.55},
+{"note":"No usable rooftop generation between 13:00 and 16:00 during the tie-in.","type":"solar_reduction","hours":[13,14,15],"factor":0.0},
+{"note":"MPPT tuning on the main inverter, 9 AM-11 AM - assume a quarter of normal.","type":"solar_reduction","hours":[9,10],"factor":0.25},
+
+{"note":"During convocation, 6 PM to 10 PM, the battery must stay at or above 150 kWh.","type":"minimum_battery_reserve","hours":[18,19,20,21],"minimum_energy_kwh":150},
+{"note":"Between 9 PM and midnight the battery should never read below 70 kWh.","type":"minimum_battery_reserve","hours":[21,22,23],"minimum_energy_kwh":70},
+{"note":"Emergency stock of 40% of capacity is required for the 18-21 window.","type":"minimum_battery_reserve","hours":[18,19,20],"minimum_energy_kwh":80},
+{"note":"Don't run the pack below 0.3 of capacity between 5 PM and 8 PM.","type":"minimum_battery_reserve","hours":[17,18,19],"minimum_energy_kwh":60},
+{"note":"The ICU feeder needs battery cover of 120 units from 19:00 to 23:00.","type":"minimum_battery_reserve","hours":[19,20,21,22],"minimum_energy_kwh":120},
+
+{"note":"LOTO on the charging contactor from 1 PM to 3 PM.","type":"no_charge_window","hours":[13,14]},
+{"note":"The PCS is locked out for a firmware update between 9 AM and noon; no charging then.","type":"no_charge_window","hours":[9,10,11]},
+{"note":"Avoid putting any energy into the battery from 3 PM to 6 PM.","type":"no_charge_window","hours":[15,16,17]},
+{"note":"The DC breaker is racked out from 2 AM till 5 AM, so charging is not possible.","type":"no_charge_window","hours":[2,3,4]},
+{"note":"Hold off on topping up the battery during 08:00-11:00.","type":"no_charge_window","hours":[8,9,10]},
+{"note":"Please try to avoid charging between 1 PM and 4 PM if you can.","type":"no_charge_window","hours":[13,14,15]},
+
+{"note":"Arc-flash study in progress; no battery dispatch from 9 AM until noon.","type":"no_discharge_window","hours":[9,10,11]},
+{"note":"Battery support is unavailable for the evening peak 6 PM to 9 PM because of the islanding test.","type":"no_discharge_window","hours":[18,19,20]},
+{"note":"We must not pull from the pack from 17:00 until 20:00.","type":"no_discharge_window","hours":[17,18,19]},
+{"note":"Commissioning checks - battery export to load is locked out for two hours from 3 PM.","type":"no_discharge_window","hours":[15,16]},
+{"note":"The inverter stays in standby from 2 PM till 5 PM - no battery discharge.","type":"no_discharge_window","hours":[14,15,16]},
+
+{"note":"DESCO has asked us to keep import under 160 kWh an hour from 6 PM to 9 PM.","type":"max_grid_window","hours":[18,19,20],"max_grid_kwh":160},
+{"note":"Import must stay under 0.18 MWh per hour from 19:00 to 22:00.","type":"max_grid_window","hours":[19,20,21],"max_grid_kwh":180},
+{"note":"The HT cable is derated to 175 kWh per hour between noon and 3 PM.","type":"max_grid_window","hours":[12,13,14],"max_grid_kwh":175},
+{"note":"Sanctioned-load restriction: 185 kWh/h for the 18:00-21:00 period.","type":"max_grid_window","hours":[18,19,20],"max_grid_kwh":185},
+{"note":"Total grid import across the evening, 6 PM to 10 PM, must not exceed 600 kWh.","type":"max_grid_window","hours":[18,19,20,21],"max_grid_kwh":150},
+{"note":"Tap-changer work limits us to 165 kWh of import per hour from 2 PM to 5 PM.","type":"max_grid_window","hours":[14,15,16],"max_grid_kwh":165},
+
+{"note":"No grid import from 3 PM for the rest of the day.","type":"max_grid_window","hours":[15,16,17,18,19,20,21,22,23],"max_grid_kwh":0},
+{"note":"Do not charge the battery at any time today.","type":"no_charge_window","hours":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23]},
+{"note":"Charging is unavailable throughout the morning.","type":"no_charge_window","hours":[6,7,8,9,10,11]},
+{"note":"Do not discharge the battery during the evening.","type":"no_discharge_window","hours":[18,19,20,21]},
+{"note":"Battery charging is blocked from 1:30 PM to 3:30 PM.","type":"no_charge_window","hours":[13,14,15]},
+{"note":"Do not charge for an hour at 3 PM.","type":"no_charge_window","hours":[15]},
+
+{"note":"The annex building, not here, will cap grid import at 100 kWh this evening.","type":"no_op"},
+{"note":"Raise the battery's charge rate limit to 80 kWh/h today.","type":"no_op"},
+{"note":"Run the diesel generator from 6 PM to 9 PM.","type":"no_op"},
+{"note":"The tariff will be revised from the next billing cycle.","type":"no_op"},
+{"note":"The battery is currently at 120 kWh.","type":"no_op"},
+{"note":"Try to keep costs low this evening.","type":"no_op"},
+{"note":"We may need to cap import this evening - will confirm.","type":"no_op"},
+{"note":"Remember to log the daily meter reading.","type":"no_op"}
+]

@@ -9,6 +9,7 @@ import json, os, sys, urllib.request, concurrent.futures as cf
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8099"
+PARA_FILE = sys.argv[2] if len(sys.argv) > 2 else "paraphrases.json"
 CAP = 200.0
 BATTERY = {"capacity_kwh": CAP, "initial_energy_kwh": 100, "minimum_energy_kwh": 30,
            "max_charge_kwh_per_hour": 50, "max_discharge_kwh_per_hour": 50}
@@ -44,7 +45,7 @@ def probe(case):
 
 
 def main():
-    cases = json.load(open(os.path.join(ROOT, "tests", "paraphrases.json")))
+    cases = json.load(open(os.path.join(ROOT, "tests", PARA_FILE)))
     with cf.ThreadPoolExecutor(max_workers=6) as ex:
         results = list(ex.map(probe, cases))
     bad = 0
