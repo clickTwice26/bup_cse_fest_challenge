@@ -1,4 +1,4 @@
-package main
+package interpret
 
 import (
 	"bytes"
@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"gridwise/internal/energy"
 	"io"
 	"log"
 	"net/http"
@@ -37,7 +38,7 @@ type Interpreter struct {
 	providers []Provider
 	client    *http.Client
 	timeout   time.Duration
-	cache     sync.Map // string -> DirectiveInterpretation
+	cache     sync.Map // string -> energy.DirectiveInterpretation
 }
 
 func env(k, def string) string {
@@ -47,7 +48,7 @@ func env(k, def string) string {
 	return def
 }
 
-func NewInterpreter() *Interpreter {
+func New() *Interpreter {
 	avail := map[string]Provider{}
 	if k := env("GEMINI_API_KEY", ""); k != "" {
 		avail["gemini"] = Provider{"gemini",
@@ -102,12 +103,12 @@ func (it *Interpreter) ProviderNames() []string {
 }
 
 type chatReq struct {
-	Model          string            `json:"model"`
-	Messages       []chatMsg         `json:"messages"`
-	Temperature    float64           `json:"temperature"`
-	MaxTokens      int               `json:"max_tokens"`
-	ResponseFormat map[string]string `json:"response_format,omitempty"`
-	ReasoningEffort string           `json:"reasoning_effort,omitempty"`
+	Model           string            `json:"model"`
+	Messages        []chatMsg         `json:"messages"`
+	Temperature     float64           `json:"temperature"`
+	MaxTokens       int               `json:"max_tokens"`
+	ResponseFormat  map[string]string `json:"response_format,omitempty"`
+	ReasoningEffort string            `json:"reasoning_effort,omitempty"`
 }
 
 // errAdvance marks a failure where retrying the same provider is pointless.
@@ -157,7 +158,7 @@ func extractJSON(s string) map[string]any {
 	return nil
 }
 
-func (it *Interpreter) call(ctx context.Context, p Provider, note string, bat Battery, nudge string) (map[string]any, error) {
+func (it *Interpreter) call(ctx context.Context, p Provider, note string, bat energy.Battery, nudge string) (map[string]any, error) {
 	sys := SystemPrompt
 	if nudge != "" {
 		sys += "\n\n" + nudge
@@ -207,7 +208,7 @@ func (it *Interpreter) call(ctx context.Context, p Provider, note string, bat Ba
 }
 
 // interpretOne walks the repair ladder for a single note.
-func (it *Interpreter) interpretOne(ctx context.Context, idx int, note string, bat Battery) DirectiveInterpretation {
+func (it *Interpreter) interpretOne(ctx context.Context, idx int, note string, bat energy.Battery) energy.DirectiveInterpretation {
 	norm := NormalizeNote(note)
 	if norm == "" {
 		return NoOpEntry(idx, "")
@@ -215,7 +216,7 @@ func (it *Interpreter) interpretOne(ctx context.Context, idx int, note string, b
 	sum := sha256.Sum256([]byte(fmt.Sprintf("%s|%g|%g", norm, bat.CapacityKwh, bat.MinimumEnergyKwh)))
 	key := hex.EncodeToString(sum[:])
 	if v, ok := it.cache.Load(key); ok {
-		e := v.(DirectiveInterpretation)
+		e := v.(energy.DirectiveInterpretation)
 		e.NoteIndex = idx
 		return e
 	}
@@ -244,7 +245,7 @@ func (it *Interpreter) interpretOne(ctx context.Context, idx int, note string, b
 		}
 	}
 
-	var entry DirectiveInterpretation
+	var entry energy.DirectiveInterpretation
 	if raw == nil {
 		// Every provider failed. Safe failure: never crash, never invent.
 		entry = fallbackExtract(idx, norm, bat)
@@ -262,8 +263,8 @@ func (it *Interpreter) interpretOne(ctx context.Context, idx int, note string, b
 
 // InterpretAll runs one call per note concurrently. note_index comes from
 // position in this slice, so ordering and completeness are structural.
-func (it *Interpreter) InterpretAll(ctx context.Context, notes []string, bat Battery) []DirectiveInterpretation {
-	out := make([]DirectiveInterpretation, len(notes))
+func (it *Interpreter) InterpretAll(ctx context.Context, notes []string, bat energy.Battery) []energy.DirectiveInterpretation {
+	out := make([]energy.DirectiveInterpretation, len(notes))
 	var wg sync.WaitGroup
 	for i, n := range notes {
 		wg.Add(1)

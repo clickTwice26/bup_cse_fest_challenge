@@ -5,8 +5,9 @@ Each note is reworded away from the public pack's phrasing. Ground truth is
 hand-written. Battery capacity is fixed at 200 kWh so percent-of-capacity
 reserves resolve to round numbers.
 """
-import json, sys, urllib.request, concurrent.futures as cf
+import json, os, sys, urllib.request, concurrent.futures as cf
 
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8099"
 CAP = 200.0
 BATTERY = {"capacity_kwh": CAP, "initial_energy_kwh": 100, "minimum_energy_kwh": 30,
@@ -43,7 +44,7 @@ def probe(case):
 
 
 def main():
-    cases = json.load(open("paraphrases.json"))
+    cases = json.load(open(os.path.join(ROOT, "tests", "paraphrases.json")))
     with cf.ThreadPoolExecutor(max_workers=6) as ex:
         results = list(ex.map(probe, cases))
     bad = 0

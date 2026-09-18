@@ -8,11 +8,12 @@ Checks, per case:
   2. the returned hourly_plan passes a full independent replay
   3. total_cost_bdt equals the reference optimal cost within 0.01
 """
-import json, sys, time, urllib.request
+import json, os, sys, time, urllib.request
 
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8099"
 TOL = 0.01
-CASES = json.load(open("BUP_CSE_FEST_2026_Preli_Public_Sample_Cases.json"))["cases"]
+CASES = json.load(open(os.path.join(ROOT, "testdata", "public_cases.json")))["cases"]
 
 
 def post(payload):

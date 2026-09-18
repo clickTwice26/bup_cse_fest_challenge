@@ -5,8 +5,9 @@ The rubric scores: "Malformed JSON, invalid structured input, LLM/provider
 errors, repeated requests, and unexpected valid numeric combinations do not
 crash the service." These are the cases the hidden set can legally contain.
 """
-import json, sys, urllib.request, urllib.error, copy
+import json, os, sys, urllib.request, urllib.error
 
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8099"
 TOL = 0.01
 

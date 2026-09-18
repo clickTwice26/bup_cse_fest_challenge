@@ -6,9 +6,10 @@ WORKDIR /src
 # Manifests first so the dependency layer caches independently of source edits.
 COPY go.mod go.sum ./
 RUN go mod download
-COPY *.go ./
+COPY cmd ./cmd
+COPY internal ./internal
 # Static binary: no libc dependency, so the final stage stays minimal.
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/gridwise .
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/gridwise ./cmd/server
 
 # ---- run ----
 FROM alpine:3.20

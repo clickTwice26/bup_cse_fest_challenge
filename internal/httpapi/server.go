@@ -1,4 +1,4 @@
-package main
+package httpapi
 
 import (
 	"context"
@@ -7,13 +7,32 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"os"
 	"sort"
 	"strings"
 	"time"
+
+	"gridwise/internal/energy"
 )
 
-var interpreter *Interpreter
+// Interpreter is the note-understanding dependency the API needs. Declaring it
+// here as an interface keeps the HTTP layer independent of any one provider.
+type Interpreter interface {
+	InterpretAll(ctx context.Context, notes []string, bat energy.Battery) []energy.DirectiveInterpretation
+}
+
+// Server wires the interpreter to the HTTP handlers.
+type Server struct {
+	interp Interpreter
+}
+
+// NewRouter returns the fully configured handler for the public API.
+func NewRouter(i Interpreter) http.Handler {
+	s := &Server{interp: i}
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /health", s.handleHealth)
+	mux.HandleFunc("POST /optimize-energy", s.handleOptimize)
+	return mux
+}
 
 func writeJSON(w http.ResponseWriter, code int, v any) {
 	w.Header().Set("Content-Type", "application/json")
@@ -25,22 +44,22 @@ func writeErr(w http.ResponseWriter, code int, msg string) {
 	writeJSON(w, code, map[string]string{"error": msg})
 }
 
-func healthHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]string{"status": "ok"})
 }
 
 // validateRequest enforces structural validity. The spec assigns 400 to
 // malformed or structurally invalid requests.
-func validateRequest(req *OptimizeRequest) string {
+func validateRequest(req *energy.OptimizeRequest) string {
 	if strings.TrimSpace(req.ScenarioID) == "" {
 		return "scenario_id is required"
 	}
-	if len(req.Hours) != NHours {
+	if len(req.Hours) != energy.NHours {
 		return "hours must contain exactly 24 entries"
 	}
 	seen := map[int]bool{}
 	for _, h := range req.Hours {
-		if h.Hour < 0 || h.Hour >= NHours {
+		if h.Hour < 0 || h.Hour >= energy.NHours {
 			return "hour must be an integer from 0 to 23"
 		}
 		if seen[h.Hour] {
@@ -67,32 +86,32 @@ func validateRequest(req *OptimizeRequest) string {
 
 // solveWithLadder relaxes constraints in order rather than ever failing.
 // directive_interpretation is NEVER edited here - it is scored separately.
-func solveWithLadder(cx *Constraints) ([]HourPlan, float64, float64, float64) {
+func solveWithLadder(cx *energy.Constraints) ([]energy.HourPlan, float64, float64, float64) {
 	// Relax in order, preferring a minimal violation over abandoning a directive.
-	ladder := []solveOpts{
-		{enforceReserve: true, enforceNeutral: true, enforceCap: true},
-		{enforceReserve: true, enforceNeutral: true, enforceCap: true, softCap: true},
-		{enforceReserve: true, enforceNeutral: true, enforceCap: true, softCap: true, softReserve: true},
-		{enforceReserve: true, enforceNeutral: false, enforceCap: true, softCap: true, softReserve: true},
-		{enforceReserve: false, enforceNeutral: false, enforceCap: false},
+	ladder := []energy.SolveOpts{
+		{EnforceReserve: true, EnforceNeutral: true, EnforceCap: true},
+		{EnforceReserve: true, EnforceNeutral: true, EnforceCap: true, SoftCap: true},
+		{EnforceReserve: true, EnforceNeutral: true, EnforceCap: true, SoftCap: true, SoftReserve: true},
+		{EnforceReserve: true, EnforceNeutral: false, EnforceCap: true, SoftCap: true, SoftReserve: true},
+		{EnforceReserve: false, EnforceNeutral: false, EnforceCap: false},
 	}
 	for _, o := range ladder {
 		if net, ok := cx.SolveLP(o); ok {
 			plan, tg, tc, pk := cx.BuildPlan(net)
-			if errs := Validate(plan, tg, tc, pk, cx); len(errs) == 0 {
+			if errs := energy.Validate(plan, tg, tc, pk, cx); len(errs) == 0 {
 				return plan, tg, tc, pk
 			}
 		}
 	}
 	// Closed-form baseline: battery idle all day. Satisfies every base rule.
-	net := make([]float64, NHours)
+	net := make([]float64, energy.NHours)
 	plan, tg, tc, pk := cx.BuildPlan(net)
 	return plan, tg, tc, pk
 }
 
 // planSummary is deterministic. The rubric states AI used only for plan_summary
 // does not satisfy the LLM requirement, so an LLM call here buys zero points.
-func planSummary(dirs []DirectiveInterpretation, tc float64) string {
+func planSummary(dirs []energy.DirectiveInterpretation, tc float64) string {
 	var applied []string
 	noop := 0
 	for _, d := range dirs {
@@ -100,7 +119,7 @@ func planSummary(dirs []DirectiveInterpretation, tc float64) string {
 			noop++
 			continue
 		}
-		hrs := adjHours(d.StructuredAdjustment)
+		hrs := energy.AdjHours(d.StructuredAdjustment)
 		applied = append(applied, fmt.Sprintf("%s over %d hour(s)",
 			strings.ReplaceAll(d.DirectiveType, "_", " "), len(hrs)))
 	}
@@ -119,7 +138,7 @@ func planSummary(dirs []DirectiveInterpretation, tc float64) string {
 	return b.String()
 }
 
-func optimizeHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleOptimize(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			log.Printf("panic in /optimize-energy: %v", rec)
@@ -132,7 +151,7 @@ func optimizeHandler(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, "could not read request body")
 		return
 	}
-	var req OptimizeRequest
+	var req energy.OptimizeRequest
 	dec := json.NewDecoder(strings.NewReader(string(body)))
 	if err := dec.Decode(&req); err != nil {
 		writeErr(w, 400, "malformed JSON request")
@@ -146,41 +165,16 @@ func optimizeHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
 	defer cancel()
 
-	dirs := interpreter.InterpretAll(ctx, req.OperatorNotes, req.Battery)
+	dirs := s.interp.InterpretAll(ctx, req.OperatorNotes, req.Battery)
 	if dirs == nil {
-		dirs = []DirectiveInterpretation{}
+		dirs = []energy.DirectiveInterpretation{}
 	}
-	cx := NewConstraints(req.Hours, req.Battery, dirs)
+	cx := energy.NewConstraints(req.Hours, req.Battery, dirs)
 	plan, tg, tc, pk := solveWithLadder(cx)
 
-	writeJSON(w, 200, OptimizeResponse{
+	writeJSON(w, 200, energy.OptimizeResponse{
 		ScenarioID: req.ScenarioID, DirectiveInterpretation: dirs, HourlyPlan: plan,
 		TotalGridKwh: tg, TotalCostBdt: tc, PeakGridKwh: pk,
 		PlanSummary: planSummary(dirs, tc),
 	})
-}
-
-func main() {
-	interpreter = NewInterpreter()
-	if !interpreter.Ready() {
-		log.Printf("WARNING: no LLM provider configured (set GROQ_API_KEY and/or GEMINI_API_KEY)")
-	} else {
-		log.Printf("interpreter providers: %v", interpreter.ProviderNames())
-	}
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /health", healthHandler)
-	mux.HandleFunc("POST /optimize-energy", optimizeHandler)
-
-	port := env("PORT", "8000")
-	srv := &http.Server{
-		Addr: ":" + port, Handler: mux,
-		ReadTimeout: 15 * time.Second, WriteTimeout: 35 * time.Second,
-		IdleTimeout: 60 * time.Second,
-	}
-	log.Printf("gridwise listening on :%s", port)
-	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Printf("server error: %v", err)
-		os.Exit(1)
-	}
 }

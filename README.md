@@ -12,6 +12,33 @@ Go 1.27 · gonum Simplex (exact LP) · Groq / Gemini / xAI via OpenAI-compatible
 
 ---
 
+## Project layout
+
+```
+cmd/server/            entrypoint: config, wiring, HTTP server
+internal/
+  energy/              domain model, exact LP optimiser, replay validator
+    model.go             request/response types, directive constants
+    lp.go                standard-form LP builder (slacks, sign handling)
+    optimizer.go         constraint projection, Simplex solve, plan assembly
+    replay.go            independent re-validation of a finished plan
+  interpret/           note understanding
+    prompt.go            frozen system prompt
+    interpreter.go       provider failover, concurrency, cache, repair ladder
+    guardrails.go        coercion, hour enumeration, unit resolution
+    crosscheck.go        deterministic cross-check + last-resort extractor
+  httpapi/             routes, validation, error mapping, relaxation ladder
+testdata/              organiser public sample pack
+tests/                 end-to-end suites (harness, paraphrase, edge)
+docs/                  problem statement and rubric
+```
+
+`internal/energy` has no dependency on `internal/interpret`: the optimiser knows
+nothing about language models. `internal/httpapi` depends on an `Interpreter`
+interface rather than a concrete provider, so the LLM layer is swappable.
+
+---
+
 ## Architecture
 
 ```
@@ -61,7 +88,7 @@ git clone <this-repo> && cd <this-repo>
 cp .env.example .env          # then edit .env and add your key(s)
 set -a && source .env && set +a
 go mod download
-go run .                      # listens on :8000
+go run ./cmd/server           # listens on :8000
 ```
 
 Verify:
@@ -98,16 +125,23 @@ note 1 → `no_op` with `applies:false`; `total_cost_bdt` **38365.00**.
 With the service running, replay all 10 public cases:
 
 ```bash
-python3 harness.py http://localhost:8000
+python3 tests/harness.py http://localhost:8000
 ```
 
 It checks interpretation against the reference, replays the returned schedule against
 every GridWise rule, and compares cost to the reference optimum.
 
-The optimiser is also verified in isolation against the reference interpretations:
+Paraphrase robustness and adversarial/edge behaviour:
 
 ```bash
-go test -run TestOptimizer -v
+python3 tests/paraphrase_test.py http://localhost:8000
+python3 tests/edge_test.py http://localhost:8000
+```
+
+Go unit tests (optimiser against the reference costs, plus guardrail rules):
+
+```bash
+go test ./...
 ```
 
 ---

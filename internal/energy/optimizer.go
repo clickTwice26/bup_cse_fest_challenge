@@ -1,4 +1,4 @@
-package main
+package energy
 
 import (
 	"math"
@@ -11,14 +11,14 @@ import (
 // Constraints is the deterministic projection of accepted directives onto the
 // math model. Nothing here reads natural language.
 type Constraints struct {
-	Demand    []float64
-	Tariff    []float64
-	EffSolar  []float64
-	Reserve   []float64
-	NoCharge  map[int]bool
-	NoDischg  map[int]bool
-	GridCap   map[int]float64
-	Bat       Battery
+	Demand   []float64
+	Tariff   []float64
+	EffSolar []float64
+	Reserve  []float64
+	NoCharge map[int]bool
+	NoDischg map[int]bool
+	GridCap  map[int]float64
+	Bat      Battery
 }
 
 func NewConstraints(hours []HourEntry, bat Battery, dirs []DirectiveInterpretation) *Constraints {
@@ -45,7 +45,7 @@ func NewConstraints(hours []HourEntry, bat Battery, dirs []DirectiveInterpretati
 	return cx
 }
 
-func adjHours(adj map[string]any) []int {
+func AdjHours(adj map[string]any) []int {
 	raw, _ := adj["hours"].([]any)
 	out := []int{}
 	for _, v := range raw {
@@ -65,7 +65,7 @@ func adjHours(adj map[string]any) []int {
 	return out
 }
 
-func adjNum(adj map[string]any, key string) (float64, bool) {
+func AdjNum(adj map[string]any, key string) (float64, bool) {
 	switch v := adj[key].(type) {
 	case float64:
 		return v, true
@@ -79,16 +79,16 @@ func (cx *Constraints) Apply(d DirectiveInterpretation) {
 	if !d.Applies || d.StructuredAdjustment == nil {
 		return
 	}
-	hrs := adjHours(d.StructuredAdjustment)
+	hrs := AdjHours(d.StructuredAdjustment)
 	switch d.DirectiveType {
 	case TypeSolarReduction:
-		if f, ok := adjNum(d.StructuredAdjustment, "factor"); ok {
+		if f, ok := AdjNum(d.StructuredAdjustment, "factor"); ok {
 			for _, h := range hrs {
 				cx.EffSolar[h] *= f
 			}
 		}
 	case TypeMinBatteryRes:
-		if v, ok := adjNum(d.StructuredAdjustment, "minimum_energy_kwh"); ok {
+		if v, ok := AdjNum(d.StructuredAdjustment, "minimum_energy_kwh"); ok {
 			for _, h := range hrs {
 				if v > cx.Reserve[h] {
 					cx.Reserve[h] = v
@@ -104,7 +104,7 @@ func (cx *Constraints) Apply(d DirectiveInterpretation) {
 			cx.NoDischg[h] = true
 		}
 	case TypeMaxGridWindow:
-		if v, ok := adjNum(d.StructuredAdjustment, "max_grid_kwh"); ok {
+		if v, ok := AdjNum(d.StructuredAdjustment, "max_grid_kwh"); ok {
 			for _, h := range hrs {
 				if cur, seen := cx.GridCap[h]; !seen || v < cur {
 					cx.GridCap[h] = v
@@ -114,16 +114,16 @@ func (cx *Constraints) Apply(d DirectiveInterpretation) {
 	}
 }
 
-type solveOpts struct {
-	enforceReserve bool
-	enforceNeutral bool
-	enforceCap     bool
+type SolveOpts struct {
+	EnforceReserve bool
+	EnforceNeutral bool
+	EnforceCap     bool
 	// soft turns the directive grid caps and reserves into penalised soft
 	// constraints instead of hard ones. The LP then satisfies them wherever it
 	// can and violates them minimally where it cannot, which is strictly better
 	// than abandoning the directive outright.
-	softCap     bool
-	softReserve bool
+	SoftCap     bool
+	SoftReserve bool
 }
 
 // bigM must dominate any real tariff cost so the LP only ever pays it as a
@@ -132,7 +132,7 @@ const bigM = 1e6
 
 // SolveLP returns net battery flow per hour (charge positive), or ok=false.
 // Layout: g[h]=h, s[h]=24+h, c[h]=48+h, d[h]=72+h.
-func (cx *Constraints) SolveLP(o solveOpts) ([]float64, bool) {
+func (cx *Constraints) SolveLP(o SolveOpts) ([]float64, bool) {
 	capHours := make([]int, 0, len(cx.GridCap))
 	for h := range cx.GridCap {
 		capHours = append(capHours, h)
@@ -140,15 +140,15 @@ func (cx *Constraints) SolveLP(o solveOpts) ([]float64, bool) {
 	sort.Ints(capHours)
 
 	nExtra := 0
-	capSlack := map[int]int{}   // hour -> variable index
+	capSlack := map[int]int{} // hour -> variable index
 	resSlack := map[int]int{}
-	if o.enforceCap && o.softCap {
+	if o.EnforceCap && o.SoftCap {
 		for _, h := range capHours {
 			capSlack[h] = 96 + nExtra
 			nExtra++
 		}
 	}
-	if o.enforceReserve && o.softReserve {
+	if o.EnforceReserve && o.SoftReserve {
 		for h := 0; h < NHours; h++ {
 			resSlack[h] = 96 + nExtra
 			nExtra++
@@ -171,7 +171,7 @@ func (cx *Constraints) SolveLP(o solveOpts) ([]float64, bool) {
 		} else {
 			b.setUB(72+h, cx.Bat.MaxDischargeKwhPerHour)
 		}
-		if o.enforceCap {
+		if o.EnforceCap {
 			if v, ok := cx.GridCap[h]; ok {
 				if si, soft := capSlack[h]; soft {
 					b.add(map[int]float64{h: 1, si: -1}, le, v) // g[h] - slack <= cap
@@ -190,7 +190,7 @@ func (cx *Constraints) SolveLP(o solveOpts) ([]float64, bool) {
 		}
 		b.add(up, le, cap-E0)
 		res := cx.Bat.MinimumEnergyKwh
-		if o.enforceReserve {
+		if o.EnforceReserve {
 			res = cx.Reserve[h]
 		}
 		if si, soft := resSlack[h]; soft {
@@ -198,7 +198,7 @@ func (cx *Constraints) SolveLP(o solveOpts) ([]float64, bool) {
 		}
 		b.add(lo, ge, res-E0)
 	}
-	if o.enforceNeutral {
+	if o.EnforceNeutral {
 		neu := map[int]float64{}
 		for k := 0; k < NHours; k++ {
 			neu[48+k] = 1
@@ -230,7 +230,7 @@ func (cx *Constraints) SolveLP(o solveOpts) ([]float64, bool) {
 	return net, true
 }
 
-func round(v float64, places int) float64 {
+func Round(v float64, places int) float64 {
 	p := math.Pow(10, float64(places))
 	return math.Round(v*p) / p
 }
@@ -244,7 +244,7 @@ func (cx *Constraints) BuildPlan(net []float64) ([]HourPlan, float64, float64, f
 	b := cx.Bat
 	n := make([]float64, NHours)
 	for h := range n {
-		n[h] = round(net[h], 6)
+		n[h] = Round(net[h], 6)
 	}
 	resid := 0.0
 	for _, v := range n {
@@ -269,15 +269,15 @@ func (cx *Constraints) BuildPlan(net []float64) ([]HourPlan, float64, float64, f
 	E := b.InitialEnergyKwh
 	totalGrid, totalCost, peak := 0.0, 0.0, 0.0
 	for h := 0; h < NHours; h++ {
-		nt := round(n[h], 4)
+		nt := Round(n[h], 4)
 		s := math.Min(cx.EffSolar[h], math.Max(0, cx.Demand[h]+nt))
-		s = round(math.Max(0, s), 4)
-		g := round(cx.Demand[h]+nt-s, 4)
+		s = Round(math.Max(0, s), 4)
+		g := Round(cx.Demand[h]+nt-s, 4)
 		if g < 0 {
-			s = round(s+g, 4)
+			s = Round(s+g, 4)
 			g = 0
 		}
-		E = round(E+nt, 4)
+		E = Round(E+nt, 4)
 		action, mag := "idle", 0.0
 		if nt > 1e-9 {
 			action, mag = "charge", nt
@@ -285,12 +285,12 @@ func (cx *Constraints) BuildPlan(net []float64) ([]HourPlan, float64, float64, f
 			action, mag = "discharge", -nt
 		}
 		plan[h] = HourPlan{Hour: h, GridKwh: g, SolarUsedKwh: s,
-			BatteryAction: action, BatteryKwh: round(mag, 4), BatteryEnergyAfterKwh: E}
+			BatteryAction: action, BatteryKwh: Round(mag, 4), BatteryEnergyAfterKwh: E}
 		totalGrid += g
 		totalCost += g * cx.Tariff[h]
 		if g > peak {
 			peak = g
 		}
 	}
-	return plan, round(totalGrid, 4), round(totalCost, 4), round(peak, 4)
+	return plan, Round(totalGrid, 4), Round(totalCost, 4), Round(peak, 4)
 }

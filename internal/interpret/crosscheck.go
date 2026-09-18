@@ -1,6 +1,7 @@
-package main
+package interpret
 
 import (
+	"gridwise/internal/energy"
 	"regexp"
 	"strconv"
 	"strings"
@@ -28,12 +29,12 @@ func crossCheck(raw map[string]any, note string) map[string]any {
 	if otherDayRe.MatchString(note) && !todayRe.MatchString(note) {
 		if CoerceBool(raw["applies_today"], true) {
 			raw["applies_today"] = false
-			raw["directive_type"] = TypeNoOp
+			raw["directive_type"] = energy.TypeNoOp
 		}
 	}
 	// d5: BY/TO polarity flip on a solar reduction. Regex polarity is more
 	// reliable here than a model performing the inversion implicitly.
-	if CoerceType(raw["directive_type"]) == TypeSolarReduction {
+	if CoerceType(raw["directive_type"]) == energy.TypeSolarReduction {
 		red, rem := reductionRe.MatchString(note), remainingRe.MatchString(note)
 		if red != rem { // exactly one cue fired
 			want := "solar_remaining_percent"
@@ -52,14 +53,14 @@ func crossCheck(raw map[string]any, note string) map[string]any {
 // ---------------------------------------------------------------- fallback
 
 var typeCues = []struct {
-	t    string
-	re   *regexp.Regexp
+	t  string
+	re *regexp.Regexp
 }{
-	{TypeNoChargeWindow, regexp.MustCompile(`(?i)(charg\w*\s+(circuit|contactor|controller)|charger|rectifier|charge\s+inhibit|not?\s+charg\w*|no\s+charging|avoid\s+charging|cannot\s+charge|don'?t\s+charge|top\s+up)`)},
-	{TypeNoDischargeWin, regexp.MustCompile(`(?i)(not?\s+discharg\w*|no\s+discharging|cannot\s+discharge|don'?t\s+discharge|relay\s+test|protection\s+test|islanding|megger|charge-only|discharge\s+contactor)`)},
-	{TypeMaxGridWindow, regexp.MustCompile(`(?i)(grid\s+(import|intake|draw|consumption)|feeder|transformer|substation|incomer|switchgear|mains|sanctioned\s+load|utility|must\s+not\s+exceed|cap\w*\s+at)`)},
-	{TypeMinBatteryRes, regexp.MustCompile(`(?i)(keep\s+at\s+least|maintain|reserve|must\s+not\s+fall\s+below|remain\s+in\s+the\s+battery|stay\s+(at\s+or\s+)?above|state\s+of\s+charge|\bsoc\b|backup)`)},
-	{TypeSolarReduction, regexp.MustCompile(`(?i)(solar|pv\b|rooftop|panel|array|inverter|cloud|haze|shading|generation)`)},
+	{energy.TypeNoChargeWindow, regexp.MustCompile(`(?i)(charg\w*\s+(circuit|contactor|controller)|charger|rectifier|charge\s+inhibit|not?\s+charg\w*|no\s+charging|avoid\s+charging|cannot\s+charge|don'?t\s+charge|top\s+up)`)},
+	{energy.TypeNoDischargeWin, regexp.MustCompile(`(?i)(not?\s+discharg\w*|no\s+discharging|cannot\s+discharge|don'?t\s+discharge|relay\s+test|protection\s+test|islanding|megger|charge-only|discharge\s+contactor)`)},
+	{energy.TypeMaxGridWindow, regexp.MustCompile(`(?i)(grid\s+(import|intake|draw|consumption)|feeder|transformer|substation|incomer|switchgear|mains|sanctioned\s+load|utility|must\s+not\s+exceed|cap\w*\s+at)`)},
+	{energy.TypeMinBatteryRes, regexp.MustCompile(`(?i)(keep\s+at\s+least|maintain|reserve|must\s+not\s+fall\s+below|remain\s+in\s+the\s+battery|stay\s+(at\s+or\s+)?above|state\s+of\s+charge|\bsoc\b|backup)`)},
+	{energy.TypeSolarReduction, regexp.MustCompile(`(?i)(solar|pv\b|rooftop|panel|array|inverter|cloud|haze|shading|generation)`)},
 }
 
 func hour24(v int, mer string) int {
@@ -82,15 +83,15 @@ func hour24(v int, mer string) int {
 
 // fallbackExtract is the last-resort safe-failure path (all providers down).
 // It is deliberately conservative: it returns no_op unless it is confident.
-func fallbackExtract(idx int, note string, bat Battery) DirectiveInterpretation {
-	dtype := TypeNoOp
+func fallbackExtract(idx int, note string, bat energy.Battery) energy.DirectiveInterpretation {
+	dtype := energy.TypeNoOp
 	for _, c := range typeCues {
 		if c.re.MatchString(note) {
 			dtype = c.t
 			break
 		}
 	}
-	if dtype == TypeNoOp || (otherDayRe.MatchString(note) && !todayRe.MatchString(note)) {
+	if dtype == energy.TypeNoOp || (otherDayRe.MatchString(note) && !todayRe.MatchString(note)) {
 		return NoOpEntry(idx, "")
 	}
 
@@ -134,21 +135,21 @@ func fallbackExtract(idx int, note string, bat Battery) DirectiveInterpretation 
 		num, _ = strconv.ParseFloat(pm[1], 64)
 		has = true
 		switch dtype {
-		case TypeSolarReduction:
+		case energy.TypeSolarReduction:
 			sem = "solar_remaining_percent"
 			if reductionRe.MatchString(note) {
 				sem = "solar_reduction_percent"
 			}
-		case TypeMinBatteryRes:
+		case energy.TypeMinBatteryRes:
 			sem = "reserve_percent_of_capacity"
 		}
 	} else if km := regexp.MustCompile(`(?i)(\d+(?:\.\d+)?)\s*(?:kwh|kw\b|units?)`).FindStringSubmatch(note); km != nil {
 		num, _ = strconv.ParseFloat(km[1], 64)
 		has = true
 		switch dtype {
-		case TypeMinBatteryRes:
+		case energy.TypeMinBatteryRes:
 			sem = "reserve_absolute_kwh"
-		case TypeMaxGridWindow:
+		case energy.TypeMaxGridWindow:
 			sem = "grid_cap_kwh_per_hour"
 		}
 	}
@@ -157,6 +158,6 @@ func fallbackExtract(idx int, note string, bat Battery) DirectiveInterpretation 
 	if !ok {
 		return NoOpEntry(idx, "")
 	}
-	return DirectiveInterpretation{NoteIndex: idx, Applies: true, DirectiveType: dtype,
+	return energy.DirectiveInterpretation{NoteIndex: idx, Applies: true, DirectiveType: dtype,
 		StructuredAdjustment: adj, Explanation: defaultExplanation[dtype]}
 }

@@ -1,19 +1,19 @@
-package main
+package energy
 
 // Request/response types matching the GridWise Problem Statement exactly.
 
 type HourEntry struct {
-	Hour        int     `json:"hour"`
-	DemandKwh   float64 `json:"demand_kwh"`
-	SolarKwh    float64 `json:"solar_kwh"`
+	Hour         int     `json:"hour"`
+	DemandKwh    float64 `json:"demand_kwh"`
+	SolarKwh     float64 `json:"solar_kwh"`
 	TariffPerKwh float64 `json:"tariff_bdt_per_kwh"`
 }
 
 type Battery struct {
-	CapacityKwh         float64 `json:"capacity_kwh"`
-	InitialEnergyKwh    float64 `json:"initial_energy_kwh"`
-	MinimumEnergyKwh    float64 `json:"minimum_energy_kwh"`
-	MaxChargeKwhPerHour float64 `json:"max_charge_kwh_per_hour"`
+	CapacityKwh            float64 `json:"capacity_kwh"`
+	InitialEnergyKwh       float64 `json:"initial_energy_kwh"`
+	MinimumEnergyKwh       float64 `json:"minimum_energy_kwh"`
+	MaxChargeKwhPerHour    float64 `json:"max_charge_kwh_per_hour"`
 	MaxDischargeKwhPerHour float64 `json:"max_discharge_kwh_per_hour"`
 }
 
@@ -54,12 +54,12 @@ type OptimizeResponse struct {
 }
 
 const (
-	TypeSolarReduction  = "solar_reduction"
-	TypeMinBatteryRes   = "minimum_battery_reserve"
-	TypeNoChargeWindow  = "no_charge_window"
-	TypeNoDischargeWin  = "no_discharge_window"
-	TypeMaxGridWindow   = "max_grid_window"
-	TypeNoOp            = "no_op"
+	TypeSolarReduction = "solar_reduction"
+	TypeMinBatteryRes  = "minimum_battery_reserve"
+	TypeNoChargeWindow = "no_charge_window"
+	TypeNoDischargeWin = "no_discharge_window"
+	TypeMaxGridWindow  = "max_grid_window"
+	TypeNoOp           = "no_op"
 )
 
 const NHours = 24

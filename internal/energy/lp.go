@@ -1,4 +1,4 @@
-package main
+package energy
 
 // Generic LP builder: accumulates <=, >=, == rows over structural variables and
 // compiles to the standard form gonum's Simplex requires (A x = b, x >= 0, b >= 0)

@@ -1,6 +1,10 @@
-package main
+package interpret
 
-import "fmt"
+import (
+	"fmt"
+
+	"gridwise/internal/energy"
+)
 
 // SystemPrompt is frozen: keep byte-stable so provider-side prompt caching hits.
 const SystemPrompt = `You convert ONE campus-operations note into ONE structured energy directive for a 24-hour scheduling model. You are an extraction component inside a deterministic pipeline.
@@ -127,7 +131,7 @@ NOTE: Tomorrow the charger will be isolated from 2 AM until 5 AM for electrical 
 {"reasoning":"change is for tomorrow, not today","applies_today":false,"directive_type":"no_op","window_start_hour":null,"window_end_hour_exclusive":null,"hours":[],"non_contiguous":false,"value_semantics":"none","value_number":null,"explanation":"This note does not affect today's energy schedule."}
 
 NOTE: For protection testing, the battery must not discharge from 6 PM until 8 PM.
-{"reasoning":"18-19; no number; today","applies_today":true,"directive_type":"no_discharge_window","window_start_hour":18,"window_end_hour_exclusive":20,"hours":[18,19],"non_contiguous":false,"value_semantics":"none","value_number":null,"explanation":"Battery discharging is blocked during protection testing."}
+{"reasoning":"18-19; no number; today","applies_today":true,"directive_type":"no_discharge_window","window_start_hour":18,"window_end_hour_exclusive":20,"hours":[18,19],"non_contiguous":false,"value_semantics":"none","value_number":null,"explanation":"energy.Battery discharging is blocked during protection testing."}
 
 NOTE: Keep at least 50% of the battery capacity stored in the battery from 6 PM until 9 PM for emergency operations.
 {"reasoning":"18-20; 50% of capacity; today","applies_today":true,"directive_type":"minimum_battery_reserve","window_start_hour":18,"window_end_hour_exclusive":21,"hours":[18,19,20],"non_contiguous":false,"value_semantics":"reserve_percent_of_capacity","value_number":50,"explanation":"Half of battery capacity is held back for emergency operations."}
@@ -153,7 +157,7 @@ NOTE: Shift the exam-hall load to the morning.
 NOTE: If the weather worsens, solar may drop to 30% after 2 PM.
 {"reasoning":"hypothetical, no committed change","applies_today":false,"directive_type":"no_op","window_start_hour":null,"window_end_hour_exclusive":null,"hours":[],"non_contiguous":false,"value_semantics":"none","value_number":null,"explanation":"This note describes a possibility, not a committed change."}`
 
-func UserMessage(note string, b Battery) string {
+func UserMessage(note string, b energy.Battery) string {
 	return fmt.Sprintf("BATTERY: capacity_kwh=%g, minimum_energy_kwh=%g, initial_energy_kwh=%g\nNOTE: %s",
 		b.CapacityKwh, b.MinimumEnergyKwh, b.InitialEnergyKwh, note)
 }
