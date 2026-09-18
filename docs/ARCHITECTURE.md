@@ -86,43 +86,44 @@ holds by construction rather than by validation.
 ```mermaid
 flowchart TD
     subgraph cmd["cmd/server"]
-        M["main.go<br/>config, wiring, lifecycle"]
+        M["main.go
+config, wiring, lifecycle"]
     end
 
     subgraph api["internal/httpapi"]
         R["routes and request validation"]
         L["relaxation ladder"]
-        S["plan_summary (deterministic)"]
     end
 
     subgraph interp["internal/interpret"]
-        P["prompt.go<br/>frozen system prompt"]
-        I["interpreter.go<br/>providers, concurrency, cache"]
-        G["guardrails.go<br/>coercion, hours, units"]
-        X["crosscheck.go<br/>deterministic oracle"]
+        P["prompt.go
+frozen system prompt"]
+        I["interpreter.go
+providers, concurrency, cache"]
+        G["guardrails.go
+coercion, hours, units"]
+        X["crosscheck.go
+deterministic oracle"]
     end
 
     subgraph energy["internal/energy"]
-        MO["model.go — types"]
-        LP["lp.go — standard-form builder"]
-        OP["optimizer.go — Simplex, plan assembly"]
-        RP["replay.go — independent validator"]
+        LP["lp.go
+standard-form builder"]
+        OP["optimizer.go
+Simplex and plan assembly"]
+        RP["replay.go
+independent validator"]
     end
 
     M --> R
     R -->|Interpreter interface| I
     R --> OP
     L --> OP
-    I --> G
-    I --> X
     I --> P
-    G --> MO
+    I --> X
+    I --> G
     OP --> LP
     OP --> RP
-
-    style energy fill:#e8f0fe,stroke:#4285f4
-    style interp fill:#fce8e6,stroke:#ea4335
-    style api fill:#e6f4ea,stroke:#34a853
 ```
 
 The dependency direction is deliberate and one-way:
@@ -141,13 +142,13 @@ The dependency direction is deliberate and one-way:
 ```mermaid
 sequenceDiagram
     autonumber
-    participant J as Judge / client
+    participant J as Judge
     participant H as httpapi
     participant I as interpret
-    participant P as Provider (Gemini)
+    participant P as Provider
     participant G as guardrails
-    participant E as energy (LP)
-    participant V as replay validator
+    participant E as energy
+    participant V as replay
 
     J->>H: POST /optimize-energy
     H->>H: structural validation
@@ -155,30 +156,30 @@ sequenceDiagram
         H-->>J: 400 with reason
     end
 
+    H->>I: InterpretAll notes and battery
     par one call per note, concurrently
-        H->>I: InterpretAll(notes, battery)
-        I->>I: normalise + cache lookup
+        I->>I: normalise and check cache
         alt cache hit
-            I-->>H: cached directive (about 0 ms)
+            I-->>I: cached directive, about 0 ms
         else cache miss
-            I->>P: chat/completions (temperature 0, JSON mode)
+            I->>P: chat completion, temperature 0, JSON mode
             P-->>I: semantic primitives
-            I->>I: cross-check (day anchor, BY/TO polarity)
+            I->>I: cross-check day anchor and polarity
             I->>G: coerce, expand window, resolve units
-            G-->>I: spec-shaped directive (or no_op)
+            G-->>I: spec-shaped directive or no_op
         end
     end
     I-->>H: one entry per note, in note_index order
 
     H->>E: project directives onto constraints
-    E->>E: Simplex solve (exact)
+    E->>E: Simplex solve
     E->>E: assemble plan, recompute totals from rounded values
     E->>V: validate independently
     alt replay fails
-        V-->>H: relax one tier and re-solve
+        V-->>E: relax one tier and re-solve
     end
     V-->>H: verified plan
-    H-->>J: 200 interpretation + 24-hour schedule
+    H-->>J: 200 interpretation and 24-hour schedule
 ```
 
 Two properties are worth calling out.
@@ -196,7 +197,8 @@ judge does. A plan that fails its own replay is never returned.
 
 ```mermaid
 flowchart TD
-    A["raw note text"] --> B["normalise<br/>Bengali/Arabic digits, whitespace, control chars"]
+    A["raw note text"] --> B["normalise
+Bengali and Arabic digits, whitespace"]
     B --> C{"cache hit?"}
     C -->|yes| Z["directive"]
     C -->|no| D["LLM call"]
@@ -204,19 +206,21 @@ flowchart TD
     D --> E{"valid JSON?"}
     E -->|no| F["retry once with a JSON reminder"]
     F --> E
-    E -->|still no| G["next provider"]
+    E -->|still no| G["advance to next provider"]
     G --> D
 
-    E -->|yes| H["cross-check"]
-    H --> H1{"other-day marker<br/>and no today marker?"}
+    E -->|yes| H1{"other-day marker
+and no today marker?"}
     H1 -->|yes| NO["force no_op"]
-    H1 -->|no| H2{"BY/TO polarity<br/>disagrees with regex?"}
+    H1 -->|no| H2{"BY or TO polarity
+disagrees with regex?"}
     H2 -->|yes| H3["take the regex polarity"]
-    H2 -->|no| I["guardrails"]
-    H3 --> I
+    H2 -->|no| I1["coerce type
+unknown becomes no_op"]
+    H3 --> I1
 
-    I --> I1["coerce type<br/>unknown becomes no_op"]
-    I1 --> I2["expand window<br/>start inclusive, end exclusive"]
+    I1 --> I2["expand window
+start inclusive, end exclusive"]
     I2 --> I3{"hours empty?"}
     I3 -->|yes| NO
     I3 -->|no| I4["resolve units by value_semantics"]
@@ -225,9 +229,6 @@ flowchart TD
     I5 -->|yes| I6["enforce applies semantics"]
     I6 --> Z
     NO --> Z
-
-    style NO fill:#fce8e6,stroke:#ea4335
-    style Z fill:#e6f4ea,stroke:#34a853
 ```
 
 ### Guardrail rules that matter
@@ -278,28 +279,28 @@ provider is unreachable, so the service degrades instead of crashing.
 sequenceDiagram
     autonumber
     participant I as interpret
-    participant A as Gemini (primary)
-    participant B as Groq (backup)
-    participant F as deterministic fallback
+    participant A as Gemini primary
+    participant B as Groq backup
+    participant F as Deterministic fallback
 
-    I->>A: attempt 1
-    alt 200 with valid JSON
+    I->>A: interpret note
+    alt valid JSON returned
         A-->>I: directive
-    else 429 or 5xx
-        A-->>I: rate limited / unavailable
-        Note over I,A: no retry — the same provider<br/>cannot serve us right now
-        I->>B: attempt 1
+    else rate limited or unavailable
+        A-->>I: HTTP 429 or 5xx
+        Note over I,A: no retry, this provider cannot serve us now
+        I->>B: interpret note
         B-->>I: directive
     else unparseable body
-        A-->>I: bad JSON
-        I->>A: attempt 2 with a JSON reminder
+        A-->>I: malformed JSON
+        I->>A: retry once with a JSON reminder
         A-->>I: directive
     end
 
-    alt every provider failed
+    opt every provider failed
         I->>F: conservative extraction
         F-->>I: directive or no_op
-        Note over I,F: logged; last resort only
+        Note over I,F: logged, last resort only
     end
 ```
 
@@ -382,14 +383,16 @@ never produce a 5xx. If a solve or its replay fails, the service descends:
 
 ```mermaid
 flowchart LR
-    P0["all directives<br/>hard"] -->|infeasible| P1["grid caps<br/>penalised"]
-    P1 -->|infeasible| P2["caps + reserves<br/>penalised"]
-    P2 -->|infeasible| P3["drop end-of-day<br/>neutrality"]
+    P0["all directives
+hard"] -->|infeasible| P1["grid caps
+penalised"]
+    P1 -->|infeasible| P2["caps and reserves
+penalised"]
+    P2 -->|infeasible| P3["drop end-of-day
+neutrality"]
     P3 -->|infeasible| P4["base rules only"]
-    P4 -->|infeasible| P5["idle baseline<br/>always valid"]
-
-    style P0 fill:#e6f4ea,stroke:#34a853
-    style P5 fill:#fef7e0,stroke:#fbbc04
+    P4 -->|infeasible| P5["idle baseline
+always valid"]
 ```
 
 Tiers 1 and 2 convert hard directives into **penalised soft constraints** with a
