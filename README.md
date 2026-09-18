@@ -9,6 +9,7 @@ schedule.
 
 * `GET /health` → `{"status":"ok"}`
 * `POST /optimize-energy` → interpretation + 24-hour plan
+* `GET /` → a small embedded demo page (optional; not part of the judged contract)
 
 Go 1.27 · gonum Simplex (exact LP) · Gemini and Groq via OpenAI-compatible APIs.
 
@@ -47,6 +48,12 @@ set -a && source .env && set +a
 go mod download
 go run ./cmd/server           # listens on :8000
 ```
+
+Opening `http://localhost:8000/` in a browser shows a single-file demo client that
+posts a scenario to `/optimize-energy` and renders the interpretation and schedule. It
+is embedded in the binary with `go:embed` — there is no build step, no framework and no
+extra dependency, and it cannot affect the two judged endpoints, which are matched by
+more specific routes.
 
 Verify the service is up:
 

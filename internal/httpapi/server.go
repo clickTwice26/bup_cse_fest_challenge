@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"embed"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,6 +14,9 @@ import (
 
 	"gridwise/internal/energy"
 )
+
+//go:embed web/index.html
+var webFS embed.FS
 
 // Interpreter is the note-understanding dependency the API needs. Declaring it
 // here as an interface keeps the HTTP layer independent of any one provider.
@@ -31,6 +35,9 @@ func NewRouter(i Interpreter) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", s.handleHealth)
 	mux.HandleFunc("POST /optimize-energy", s.handleOptimize)
+	// Demo client only. The two patterns above are more specific, so this
+	// catch-all can never shadow the judged endpoints.
+	mux.HandleFunc("GET /", s.handleIndex)
 	return mux
 }
 
@@ -42,6 +49,21 @@ func writeJSON(w http.ResponseWriter, code int, v any) {
 
 func writeErr(w http.ResponseWriter, code int, msg string) {
 	writeJSON(w, code, map[string]string{"error": msg})
+}
+
+// handleIndex serves the embedded demo page. It touches no external service.
+func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+	b, err := webFS.ReadFile("web/index.html")
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = w.Write(b)
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {

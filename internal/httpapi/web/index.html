@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GridWise LLM</title>
+<style>
+:root{--bg:#0f1220;--pan:#181c2f;--ln:#2a3050;--tx:#e7eaf6;--mut:#9aa3c7;--ac:#6ea8ff;--ok:#4ade80;--wn:#fbbf24}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:28px 16px 60px}
+h1{font-size:26px;margin:0 0 4px}
+.sub{color:var(--mut);margin:0 0 22px}
+.grid{display:grid;grid-template-columns:1fr;gap:16px}
+@media(min-width:900px){.grid{grid-template-columns:380px 1fr}}
+.card{background:var(--pan);border:1px solid var(--ln);border-radius:10px;padding:16px}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);margin:0 0 10px}
+textarea{width:100%;min-height:150px;background:#0c0f1c;color:var(--tx);border:1px solid var(--ln);border-radius:7px;padding:10px;font:13px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;resize:vertical}
+button{background:var(--ac);color:#06183a;border:0;border-radius:7px;padding:10px 16px;font-weight:650;cursor:pointer}
+button:disabled{opacity:.55;cursor:default}
+button.ghost{background:transparent;color:var(--mut);border:1px solid var(--ln);font-weight:500}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.d{border:1px solid var(--ln);border-left:3px solid var(--ac);border-radius:7px;padding:10px;margin-bottom:8px;background:#0c0f1c}
+.d.noop{border-left-color:#4b5578;opacity:.75}
+.t{font:12px ui-monospace,Menlo,monospace;color:var(--ac)}
+.d.noop .t{color:var(--mut)}
+.adj{font:12px ui-monospace,Menlo,monospace;color:var(--mut);margin-top:4px;word-break:break-word}
+.ex{font-size:13px;color:var(--mut);margin-top:4px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:14px}
+.s{background:#0c0f1c;border:1px solid var(--ln);border-radius:7px;padding:10px}
+.s b{display:block;font-size:19px}
+.s span{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}
+table{width:100%;border-collapse:collapse;font:12px ui-monospace,Menlo,monospace}
+th,td{padding:4px 6px;text-align:right;border-bottom:1px solid var(--ln)}
+th{color:var(--mut);font-weight:500;text-align:right;position:sticky;top:0;background:var(--pan)}
+th:first-child,td:first-child{text-align:left}
+.sc{max-height:340px;overflow:auto;border:1px solid var(--ln);border-radius:7px}
+.chg{color:var(--wn)}.dis{color:var(--ok)}.idl{color:var(--mut)}
+.err{color:#fca5a5;font:13px ui-monospace,Menlo,monospace;white-space:pre-wrap}
+code{background:#0c0f1c;padding:1px 5px;border-radius:4px;font-size:13px}
+</style></head><body><div class="wrap">
+<h1>GridWise LLM</h1>
+<p class="sub">Operator notes in plain English become structured directives, then a cost-minimal 24-hour schedule.
+This page is a demo client for <code>POST /optimize-energy</code>; the judged API is unchanged.</p>
+
+<div class="grid">
+  <div class="card">
+    <h2>Scenario</h2>
+    <textarea id="in" spellcheck="false"></textarea>
+    <div class="row">
+      <button id="go">Optimise</button>
+      <button class="ghost" id="ld">Load sample</button>
+    </div>
+    <div class="ex" id="st"></div>
+  </div>
+
+  <div class="card">
+    <h2>Result</h2>
+    <div id="out"><p class="ex">Run the sample to see the interpretation and schedule.</p></div>
+  </div>
+</div></div>
+
+<script>
+const SAMPLE={scenario_id:"DEMO-01",operator_notes:["Facilities will wash the rooftop solar panels from noon until 2 PM. During cleaning, usable solar should be treated as roughly 25% of the forecast.","Keep at least 50% of the battery capacity in reserve from 6 PM until 9 PM.","The cafeteria menu changes tomorrow."],hours:Array.from({length:24},(_,h)=>({hour:h,demand_kwh:90+(h%6)*18,solar_kwh:Math.max(0,140-Math.abs(h-12)*22),tariff_bdt_per_kwh:h>=18&&h<=21?13:(h<6?5:9)})),battery:{capacity_kwh:240,initial_energy_kwh:120,minimum_energy_kwh:40,max_charge_kwh_per_hour:60,max_discharge_kwh_per_hour:60}};
+const $=s=>document.querySelector(s), esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+$('#ld').onclick=()=>{$('#in').value=JSON.stringify(SAMPLE,null,2);$('#st').textContent='';};
+$('#ld').click();
+$('#go').onclick=async()=>{
+  const b=$('#go');let body;
+  try{body=JSON.parse($('#in').value)}catch(e){$('#st').innerHTML='<span class="err">Invalid JSON: '+esc(e.message)+'</span>';return}
+  b.disabled=true;$('#st').textContent='Interpreting notes…';const t0=performance.now();
+  try{
+    const r=await fetch('optimize-energy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const j=await r.json();const ms=Math.round(performance.now()-t0);
+    if(!r.ok){$('#st').innerHTML='<span class="err">HTTP '+r.status+' — '+esc(j.error||'')+'</span>';$('#out').innerHTML='';return}
+    $('#st').textContent='Completed in '+ms+' ms';render(j,body);
+  }catch(e){$('#st').innerHTML='<span class="err">'+esc(e.message)+'</span>'}
+  finally{b.disabled=false}
+};
+function render(j,req){
+  const di=j.directive_interpretation.map(d=>{
+    const n=d.directive_type==='no_op';
+    const a=d.structured_adjustment?Object.entries(d.structured_adjustment).map(([k,v])=>k+': '+(Array.isArray(v)?'['+v.join(', ')+']':v)).join('  ·  '):'null';
+    return '<div class="d'+(n?' noop':'')+'"><div class="t">note '+d.note_index+' → '+esc(d.directive_type)+'  ·  applies: '+d.applies+'</div>'+
+           '<div class="adj">'+esc(a)+'</div><div class="ex">'+esc(d.explanation||'')+'</div></div>';
+  }).join('');
+  const rows=j.hourly_plan.map(p=>{
+    const c=p.battery_action==='charge'?'chg':p.battery_action==='discharge'?'dis':'idl';
+    return '<tr><td>'+p.hour+'</td><td>'+p.grid_kwh.toFixed(1)+'</td><td>'+p.solar_used_kwh.toFixed(1)+
+      '</td><td class="'+c+'">'+p.battery_action+'</td><td class="'+c+'">'+p.battery_kwh.toFixed(1)+
+      '</td><td>'+p.battery_energy_after_kwh.toFixed(1)+'</td></tr>';
+  }).join('');
+  $('#out').innerHTML=
+   '<div class="stats">'+
+   '<div class="s"><span>Total cost</span><b>৳'+j.total_cost_bdt.toFixed(2)+'</b></div>'+
+   '<div class="s"><span>Grid energy</span><b>'+j.total_grid_kwh.toFixed(1)+' kWh</b></div>'+
+   '<div class="s"><span>Peak hour</span><b>'+j.peak_grid_kwh.toFixed(1)+' kWh</b></div>'+
+   '<div class="s"><span>Notes read</span><b>'+j.directive_interpretation.length+'</b></div></div>'+
+   '<h2>Directive interpretation</h2>'+di+
+   '<h2 style="margin-top:14px">Hourly plan</h2><div class="sc"><table><thead><tr>'+
+   '<th>hr</th><th>grid</th><th>solar</th><th>action</th><th>kWh</th><th>battery</th></tr></thead><tbody>'+rows+
+   '</tbody></table></div><p class="ex">'+esc(j.plan_summary||'')+'</p>';
+}
+</script></body></html>
