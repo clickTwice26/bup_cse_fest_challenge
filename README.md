@@ -6,6 +6,7 @@ optimisation, and returns both the machine-checkable interpretation and a cost-m
 schedule.
 
 **Live:** `https://bup-sce.cubicle.shagato.space`
+**Image:** `ghcr.io/clicktwice26/gridwise:v1` (linux/amd64)
 
 * `GET /health` → `{"status":"ok"}`
 * `POST /optimize-energy` → interpretation + 24-hour plan
@@ -108,12 +109,37 @@ prompt exhausts after two concurrent notes.
 
 ## 3. Docker and deployment
 
+### Pull the published image (fallback path)
+
 ```bash
+docker pull ghcr.io/clicktwice26/gridwise:v1
+
+docker run -d --restart=always -p 8000:8000 \
+  -e GEMINI_API_KEY=... -e GROQ_API_KEY=... \
+  --name gridwise ghcr.io/clicktwice26/gridwise:v1
+
+curl -s localhost:8000/health
+# {"status":"ok"}
+```
+
+The published image is built for **`linux/amd64`**. It is built on Apple Silicon with
+an explicit platform flag, because an arm64-only image would not start on a typical
+x86 evaluation host.
+
+### Build it yourself
+
+```bash
+# native architecture
 docker build -t gridwise:local .
-docker run -d --restart=always -p 80:8000 \
+
+# or reproduce the published linux/amd64 image exactly
+docker buildx build --platform linux/amd64 -t gridwise:amd64 --load .
+
+docker run -d --restart=always -p 8000:8000 \
   -e GEMINI_API_KEY=... -e GROQ_API_KEY=... \
   --name gridwise gridwise:local
-curl -s localhost/health
+
+curl -s localhost:8000/health
 ```
 
 The image is a **30 MB static Go binary on Alpine**. It runs as a non-root user (uid
