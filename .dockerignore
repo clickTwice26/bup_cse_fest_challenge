@@ -1,6 +1,33 @@
+# vcs
 .git
+.gitignore
+
+# secrets - never into the build context
 .env
+.env.*
+!.env.example
+
+# local tooling / non-Go sources
 .venv
+venv
+__pycache__
+*.pyc
 reference_python
-*.pdf
+
+# docs, specs and submission artifacts
 *.md
+*.pdf
+
+# build output
+gridwise
+out
+*.exe
+*.test
+
+# editor / OS noise
+.DS_Store
+Thumbs.db
+.idea
+.vscode
+.claude
+.kilo

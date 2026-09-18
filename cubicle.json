@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "healthCheckPath": "/health",
+  "env": {
+    "LLM_PROVIDER_ORDER": "gemini,groq,xai",
+    "LLM_TIMEOUT_SECONDS": "6",
+    "GEMINI_BASE_URL": "https://generativelanguage.googleapis.com/v1beta/openai/",
+    "GEMINI_MODEL": "gemini-2.5-flash",
+    "GEMINI_REASONING_EFFORT": "none",
+    "GROQ_BASE_URL": "https://api.groq.com/openai/v1",
+    "GROQ_MODEL": "openai/gpt-oss-120b",
+    "GROQ_REASONING_EFFORT": "low"
+  }
+}
