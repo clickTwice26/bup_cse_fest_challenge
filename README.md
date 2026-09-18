@@ -12,6 +12,15 @@ Go 1.27 · gonum Simplex (exact LP) · Groq / Gemini / xAI via OpenAI-compatible
 
 ---
 
+## Documentation
+
+| Document | Contents |
+|---|---|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How it works and why: the central design decision, component structure, request lifecycle, interpretation pipeline, provider failover, the LP formulation, the relaxation ladder, and known limitations. With sequence and flow diagrams. |
+| [docs/API.md](docs/API.md) | Endpoint reference: request and response schemas, directive types, response invariants, status codes, a worked example, and the full interpretation conventions. |
+
+---
+
 ## Project layout
 
 ```
