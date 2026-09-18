@@ -1,0 +1,46 @@
+# ---- secrets: never commit ----
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+credentials.json
+
+# ---- AI assistant / editor artifacts ----
+plan.md
+CLAUDE.md
+AGENTS.md
+.claude/
+.claude*/
+.kilo/
+.cursor/
+.cursorrules
+.aider*
+.continue/
+.windsurf/
+.github/copilot-instructions.md
+**/skills/
+*.skill
+
+# ---- build artifacts ----
+/gridwise
+/out/
+*.exe
+*.test
+
+# ---- local tooling ----
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# ---- OS / editor noise ----
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# submission artifacts (not code)
+VIDEO_SCRIPT.md

@@ -1,0 +1,43 @@
+[
+{"note":"PV production will be around one-third of normal between 10:00 and 13:00.","type":"solar_reduction","hours":[10,11,12],"factor":0.333},
+{"note":"Expect only half the usual rooftop generation from 11 AM until 2 PM.","type":"solar_reduction","hours":[11,12,13],"factor":0.5},
+{"note":"Solar generation will be reduced by 60% from noon until 3 PM.","type":"solar_reduction","hours":[12,13,14],"factor":0.4},
+{"note":"Knock 20% off the solar forecast between 8 AM and 11 AM.","type":"solar_reduction","hours":[8,9,10],"factor":0.8},
+{"note":"Derate the array by three-quarters during panel washing, 9 AM to 11 AM.","type":"solar_reduction","hours":[9,10],"factor":0.25},
+{"note":"The array is completely offline from 1 PM to 3 PM for re-stringing.","type":"solar_reduction","hours":[13,14],"factor":0.0},
+{"note":"Dust on the panels leaves about 70% of rated output from 8 AM to 11 AM.","type":"solar_reduction","hours":[8,9,10],"factor":0.7},
+{"note":"There will be a 70 percent drop in PV output from 1 PM to 4 PM.","type":"solar_reduction","hours":[13,14,15],"factor":0.3},
+
+{"note":"Battery state of charge must not fall below 100 kWh between 7 PM and 11 PM.","type":"minimum_battery_reserve","hours":[19,20,21,22],"minimum_energy_kwh":100},
+{"note":"Maintain a minimum of one-third of capacity in storage from 5 PM till 9 PM.","type":"minimum_battery_reserve","hours":[17,18,19,20],"minimum_energy_kwh":66.6},
+{"note":"Hold back 60 kWh for the exam server room from 8 PM to midnight.","type":"minimum_battery_reserve","hours":[20,21,22,23],"minimum_energy_kwh":60},
+{"note":"We need at least a quarter of the pack held in reserve from 19:00 to 22:00.","type":"minimum_battery_reserve","hours":[19,20,21],"minimum_energy_kwh":50},
+{"note":"SOC must not go under 45% from 6 PM to 9 PM.","type":"minimum_battery_reserve","hours":[18,19,20],"minimum_energy_kwh":90},
+
+{"note":"No battery charging from 1 AM to 4 AM - rectifier servicing.","type":"no_charge_window","hours":[1,2,3]},
+{"note":"Charging must be suspended during the 13:00-16:00 window.","type":"no_charge_window","hours":[13,14,15]},
+{"note":"Keep the charger offline from 10 PM until midnight.","type":"no_charge_window","hours":[22,23]},
+{"note":"Charge inhibit is active from 6 AM to 9 AM.","type":"no_charge_window","hours":[6,7,8]},
+{"note":"The charge controller is being replaced - no charging for three hours starting at 10 AM.","type":"no_charge_window","hours":[10,11,12]},
+{"note":"Please don't build up the battery during the 2 PM hour.","type":"no_charge_window","hours":[14]},
+
+{"note":"Battery output is blocked from 7 PM to 10 PM while relays are under test.","type":"no_discharge_window","hours":[19,20,21]},
+{"note":"The discharge contactor is out of service from 4 PM until 6 PM.","type":"no_discharge_window","hours":[16,17]},
+{"note":"The BESS is in charge-only mode from 1 PM to 4 PM.","type":"no_discharge_window","hours":[13,14,15]},
+{"note":"Battery discharge is prohibited from 11 AM to 2 PM for the megger test.","type":"no_discharge_window","hours":[11,12,13]},
+
+{"note":"Cap utility draw at 200 kWh per hour between 18:00 and 22:00.","type":"max_grid_window","hours":[18,19,20,21],"max_grid_kwh":200},
+{"note":"One incomer is out, so hourly grid consumption cannot exceed 170 kWh from 5 PM until 8 PM.","type":"max_grid_window","hours":[17,18,19],"max_grid_kwh":170},
+{"note":"Grid import ceiling of 130 kW applies from 6 PM to 9 PM.","type":"max_grid_window","hours":[18,19,20],"max_grid_kwh":130},
+{"note":"We're allowed 145 units an hour from the utility between 6 PM and 10 PM.","type":"max_grid_window","hours":[18,19,20,21],"max_grid_kwh":145},
+{"note":"No grid import at all from 2 PM to 4 PM during the changeover.","type":"max_grid_window","hours":[14,15],"max_grid_kwh":0},
+
+{"note":"Tomorrow the charger goes offline from 2 AM to 5 AM.","type":"no_op"},
+{"note":"We will replace the inverter next week; expect reduced solar then.","type":"no_op"},
+{"note":"Admission forms are available at the counter from 9 AM.","type":"no_op"},
+{"note":"Evening demand will be 10% higher today.","type":"no_op"},
+{"note":"Sell surplus power back to the grid this afternoon.","type":"no_op"},
+{"note":"If the weather worsens, solar may drop to 30% after 2 PM.","type":"no_op"},
+{"note":"Yesterday's solar generation was below forecast.","type":"no_op"},
+{"note":"Solar will be 20% higher than forecast this afternoon.","type":"no_op"}
+]

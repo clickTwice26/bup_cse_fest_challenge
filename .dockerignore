@@ -1,0 +1,6 @@
+.git
+.env
+.venv
+reference_python
+*.pdf
+*.md
